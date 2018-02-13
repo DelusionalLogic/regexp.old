@@ -5,23 +5,23 @@ ENV=
 # Things you might want to put in TEST:
 # -DDEBUG		debugging hooks
 # -I.			regexp.h from current directory, not /usr/include
-TEST=-I.
+TEST=-I. -DDEBUG
 
 # Things you might want to put in PROF:
 # -pg			profiler
 PROF=
 
-CFLAGS=-O $(ENV) $(TEST) $(PROF)
+CFLAGS=-O -fPIC $(ENV) $(TEST) $(PROF)
 LDFLAGS=$(PROF)
 
-LIB=libregexp.a
+LIB=libregexp.so
 OBJ=regexp.o regsub.o regerror.o
 TMP=dtr.tmp
 
 default:	r
 
 try:	try.o $(LIB)
-	cc $(LDFLAGS) try.o $(LIB) -o try
+	cc $(LDFLAGS) -L$(PWD) -lregexp try.o -o try
 
 # Making timer will probably require putting stuff in $(PROF) and then
 # recompiling everything; the following is just the final stage.
@@ -35,10 +35,10 @@ timer.t.h:	tests
 
 # Regression test.
 r:	try tests
-	./try <tests		# no news is good news...
+	LD_LIBRARY_PATH=$(PWD) ./try <tests		# no news is good news...
 
 $(LIB):	$(OBJ)
-	ar cr $(LIB) $(OBJ)
+	gcc -shared -o $(LIB) $(OBJ)
 
 regexp.o:	regexp.c regexp.h regmagic.h
 regsub.o:	regsub.c regexp.h regmagic.h

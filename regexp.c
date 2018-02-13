@@ -136,11 +136,18 @@ static char *regbranch(struct comp *cp, int *flagp);
 static char *regpiece(struct comp *cp, int *flagp);
 static char *regatom(struct comp *cp, int *flagp);
 static char *regnode(struct comp *cp, int op);
-static char *regnext(char *node);
 static void regc(struct comp *cp, int c);
 static void reginsert(struct comp *cp, int op, char *opnd);
 static void regtail(struct comp *cp, char *p, char *val);
 static void regoptail(struct comp *cp, char *p, char *val);
+
+char* regchk(char* prog) {
+	if ((unsigned char)*prog != MAGIC) {
+		regerror("corrupted regexp");
+		return NULL;
+	}
+	return prog+1;
+}
 
 /*
  - regcomp - compile a regular expression into internal code
@@ -950,7 +957,7 @@ char *node;
 /*
  - regnext - dig the "next" pointer out of a node
  */
-static char *
+char *
 regnext(p)
 register char *p;
 {
@@ -1007,6 +1014,42 @@ regexp *r;
 	if (r->regmust != NULL)
 		printf("must have \"%s\"", r->regmust);
 	printf("\n");
+}
+
+size_t regsplit_start(char* prog, regpart* part) {
+	part->op = EXACTLY;
+	part->str = NULL;
+	return 1;
+}
+
+size_t regsplit(char* prog, regpart* part, size_t index) {
+	char* s = prog + index;
+
+	part->location = index;
+	part->op = OP(s);
+	char* next = regnext(s);
+
+	if(next == NULL)
+		part->offset = 0;
+	else
+		part->offset = (s-prog) + (next-s);
+
+	s += 3;
+
+	if(part->str != NULL) {
+		free(part->str);
+		part->str = NULL;
+	}
+
+	if (part->op == ANYOF || part->op == ANYBUT || part->op == EXACTLY) {
+		size_t len = strlen(s);
+		part->str = strndup(s, len + 1);
+		s += len + 1;
+	} else if (part->op == BRANCH || part->op == STAR || part->op == PLUS) {
+		part->cmd = s - prog;
+	}
+
+	return s - prog;
 }
 
 /*
